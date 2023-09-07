@@ -42,7 +42,7 @@ class LlavaMetaModel:
         vision_tower = model_args.vision_tower
         mm_vision_select_layer = model_args.mm_vision_select_layer
         mm_vision_select_feature = model_args.mm_vision_select_feature
-        pretrain_mm_mlp_adapter = model_args.pretrain_mm_mlp_adapter
+        pretrain_mm_mlp_adapter = model_args.pretrain_mm_mlp_adapter    # 是否有训练好的mm_mlp_adapter用于加载
 
         self.config.mm_vision_tower = vision_tower
 
