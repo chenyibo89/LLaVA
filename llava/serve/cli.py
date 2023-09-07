@@ -37,6 +37,8 @@ def main(args):
         conv_mode = "llava_v1"
     elif "mpt" in model_name.lower():
         conv_mode = "mpt"
+    elif "alpaca" in model_name.lower():
+        conv_mode = "alpaca_2"
     else:
         conv_mode = "llava_v0"
 
@@ -46,6 +48,7 @@ def main(args):
         args.conv_mode = conv_mode
 
     conv = conv_templates[args.conv_mode].copy()
+    print("your conv_mode is: {}".format(conv))
     if "mpt" in model_name.lower():
         roles = ('user', 'assistant')
     else:
@@ -78,9 +81,11 @@ def main(args):
             conv.append_message(conv.roles[0], inp)
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
+        # print("prompt: {}".format(repr(prompt)))
 
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
+        # print(stop_str)
         keywords = [stop_str]
         stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
         streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -97,7 +102,8 @@ def main(args):
                 stopping_criteria=[stopping_criteria])
 
         outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:]).strip()
-        conv.messages[-1][-1] = outputs
+        print("\n", {"prompt": prompt, "outputs": outputs}, "\n")
+        conv.messages[-1][-1] = outputs.rstrip(conv.eos)
 
         if args.debug:
             print("\n", {"prompt": prompt, "outputs": outputs}, "\n")

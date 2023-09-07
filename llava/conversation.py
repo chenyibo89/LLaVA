@@ -22,6 +22,8 @@ class Conversation:
     sep_style: SeparatorStyle = SeparatorStyle.SINGLE
     sep: str = "###"
     sep2: str = None
+    bos: str = None
+    eos: str = None
     version: str = "Unknown"
 
     skip_next: bool = False
@@ -79,15 +81,18 @@ class Conversation:
                 if message:
                     if type(message) is tuple:
                         message, _, _ = message
-                    if i == 0: message = wrap_sys(self.system) + message
+                    if i == 0: 
+                        message = wrap_sys(self.system) + message
                     if i % 2 == 0:
-                        message = wrap_inst(message)
-                        ret += self.sep + message
+                        message = wrap_inst(message.strip())
+                        ret += self.bos + message
                     else:
-                        ret += " " + message + " " + self.sep2
+                        # ret += " " + message.rstrip(self.eos).strip() + " " + self.eos 
+                        ret += " " + message + " " + self.eos 
+                        # 这里做了改动，训练时回复的message是没有eos的，需要加上；但推理时，回复的message是自动带有eos的，如果直接加eos就会有2个
                 else:
                     ret += ""
-            ret = ret.lstrip(self.sep)
+            ret = ret.lstrip(self.bos) # 这里先删除bos是因为在后面调用tokenizer_image_token时，还会再加回来
         elif self.sep_style == SeparatorStyle.PLAIN:
             seps = [self.sep, self.sep2]
             ret = self.system
@@ -197,6 +202,8 @@ class Conversation:
             sep_style=self.sep_style,
             sep=self.sep,
             sep2=self.sep2,
+            bos=self.bos,
+            eos=self.eos,
             version=self.version)
 
     def dict(self):
@@ -208,6 +215,8 @@ class Conversation:
                 "offset": self.offset,
                 "sep": self.sep,
                 "sep2": self.sep2,
+                "bos": self.bos,
+                "eos": self.eos,
             }
         return {
             "system": self.system,
@@ -216,6 +225,8 @@ class Conversation:
             "offset": self.offset,
             "sep": self.sep,
             "sep2": self.sep2,
+            "bos": self.bos,
+            "eos": self.eos,
         }
 
 
@@ -286,6 +297,8 @@ conv_llava_llama_2 = Conversation(
     sep_style=SeparatorStyle.LLAMA_2,
     sep="<s>",
     sep2="</s>",
+    bos="<s>",
+    eos="</s>",
 )
 
 conv_mpt = Conversation(
@@ -373,6 +386,7 @@ conv_templates = {
     "llava_v1": conv_llava_v1,
     "v1_mmtag": conv_llava_v1_mmtag,
     "llava_llama_2": conv_llava_llama_2,
+    "alpaca_2": conv_llava_llama_2,
 
     "mpt": conv_mpt,
 }

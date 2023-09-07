@@ -42,6 +42,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
     config_class = LlavaConfig
 
     def __init__(self, config):
+        # 注意：这里super传入的是LlamaForCausalLM，而不是类本身的LlavaLlamaForCausalLM，因此不会实际调用LlamaForCausalLM里的init函数，只会调用LlavaMetaForCausalLM的
+        # TODO：不太懂为什么要继承LlamaForCausalLM这个类，不加会怎么样？
         super(LlamaForCausalLM, self).__init__(config)
         self.model = LlavaLlamaModel(config)
 

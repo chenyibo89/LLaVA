@@ -23,9 +23,10 @@ def tokenizer_image_token(prompt, tokenizer, image_token_index=IMAGE_TOKEN_INDEX
 
     input_ids = []
     offset = 0
+    # 这里注意tokenizer会默认添加bos之类的特殊token，需要删掉
     if len(prompt_chunks) > 0 and len(prompt_chunks[0]) > 0 and prompt_chunks[0][0] == tokenizer.bos_token_id:
         offset = 1
-        input_ids.append(prompt_chunks[0][0])
+        input_ids.append(prompt_chunks[0][0])   # 把之前在conv.get_prompt时删掉的bos再加回来
 
     for x in insert_separator(prompt_chunks, [image_token_index] * (offset + 1)):
         input_ids.extend(x[offset:])
