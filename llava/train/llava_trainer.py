@@ -45,6 +45,45 @@ class LLaVATrainer(Trainer):
             if self.args.local_rank == 0 or self.args.local_rank == -1:
                 self.model.config.save_pretrained(output_dir)
                 torch.save(weight_to_save, os.path.join(output_dir, f'mm_projector.bin'))
+
+        elif getattr(self.args, 'sft_lingji', False):
+
+            from transformers.trainer import TRAINING_ARGS_NAME, TRAINER_STATE_NAME
+            from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
+            from transformers.utils import SAFE_WEIGHTS_NAME, WEIGHTS_NAME
+
+            checkpoint_folder = f"{PREFIX_CHECKPOINT_DIR}-{self.state.global_step}"
+
+            run_dir = self._get_output_dir(trial=trial)
+            output_dir = os.path.join(run_dir, checkpoint_folder)
+
+            # Only save model and config, without tokenizer
+            logger.info(f"Saving model checkpoint to {output_dir}")
+
+            supported_classes = (PreTrainedModel,) if not is_peft_available() else (PreTrainedModel, PeftModel)
+            # Save a trained model and configuration using `save_pretrained()`.
+            # They can then be reloaded using `from_pretrained()`
+            if not isinstance(self.model, supported_classes):
+                if state_dict is None:
+                    state_dict = self.model.state_dict()
+
+                if isinstance(unwrap_model(self.model), supported_classes):
+                    unwrap_model(self.model).save_pretrained(
+                        output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors
+                    )
+                else:
+                    logger.info("Trainer.model is not a `PreTrainedModel`, only saving its state dict.")
+                    if self.args.save_safetensors:
+                        safetensors.torch.save_file(state_dict, os.path.join(output_dir, SAFE_WEIGHTS_NAME))
+                    else:
+                        torch.save(state_dict, os.path.join(output_dir, WEIGHTS_NAME))
+            else:
+                self.model.save_pretrained(
+                    output_dir, state_dict=state_dict, safe_serialization=self.args.save_safetensors
+                )
+            # Good practice: save your training arguments together with the trained model
+            torch.save(self.args, os.path.join(output_dir, TRAINING_ARGS_NAME))
+
         else:
             super(LLaVATrainer, self)._save_checkpoint(model, trial, metrics)
 

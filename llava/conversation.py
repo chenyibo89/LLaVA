@@ -10,6 +10,7 @@ class SeparatorStyle(Enum):
     MPT = auto()
     PLAIN = auto()
     LLAMA_2 = auto()
+    LINGJI_2 = auto()
 
 
 @dataclasses.dataclass
@@ -22,6 +23,8 @@ class Conversation:
     sep_style: SeparatorStyle = SeparatorStyle.SINGLE
     sep: str = "###"
     sep2: str = None
+    bos: str = None
+    eos: str = None
     version: str = "Unknown"
 
     skip_next: bool = False
@@ -81,13 +84,15 @@ class Conversation:
                         message, _, _ = message
                     if i == 0: message = wrap_sys(self.system) + message
                     if i % 2 == 0:
-                        message = wrap_inst(message)
-                        ret += self.sep + message
+                        message = wrap_inst(message.strip())
+                        ret += self.bos + message
                     else:
-                        ret += " " + message + " " + self.sep2
+                        # ret += " " + message.rstrip(self.eos).strip() + " " + self.eos 
+                        ret += " " + message + " " + self.eos 
+                        # 这里做了改动，训练时回复的message是没有eos的，需要加上；但推理时，回复的message是自动带有eos的，如果直接加eos就会有2个
                 else:
                     ret += ""
-            ret = ret.lstrip(self.sep)
+            ret = ret.lstrip(self.bos) # 这里先删除bos是因为在后面调用tokenizer_image_token时，还会再加回来
         elif self.sep_style == SeparatorStyle.PLAIN:
             seps = [self.sep, self.sep2]
             ret = self.system
@@ -96,6 +101,27 @@ class Conversation:
                     if type(message) is tuple:
                         message, _, _ = message
                     ret += message + seps[i % 2]
+                else:
+                    ret += ""
+        elif self.sep_style == SeparatorStyle.LINGJI_2:
+            wrap_sys = lambda msg: f"<xxx>{msg}"
+            wrap_usr = lambda msg: f"<xxx>{msg}"
+            wrap_ass = lambda msg: f"<xxx>{msg}"
+            ret = ""
+            ret += wrap_sys(self.system)
+            for i, (role, message) in enumerate(messages):
+                if i == 0:
+                    assert message, "first message should not be none"
+                    assert role == self.roles[0], "first message should come from user"
+                if message:
+                    if type(message) is tuple:
+                        message, _, _ = message
+                    if i % 2 == 0:
+                        message = wrap_usr(message)
+                        ret += message
+                    else:
+                        message = wrap_ass(message)
+                        ret += message + self.eos
                 else:
                     ret += ""
         else:
@@ -208,6 +234,8 @@ class Conversation:
                 "offset": self.offset,
                 "sep": self.sep,
                 "sep2": self.sep2,
+                "bos": self.bos,
+                "eos": self.eos,
             }
         return {
             "system": self.system,
@@ -216,6 +244,8 @@ class Conversation:
             "offset": self.offset,
             "sep": self.sep,
             "sep2": self.sep2,
+            "bos": self.bos,
+            "eos": self.eos,
         }
 
 
@@ -286,6 +316,8 @@ conv_llava_llama_2 = Conversation(
     sep_style=SeparatorStyle.LLAMA_2,
     sep="<s>",
     sep2="</s>",
+    bos="<s>",
+    eos="</s>",
 )
 
 conv_mpt = Conversation(
@@ -314,8 +346,10 @@ conv_llava_v0 = Conversation(
            "The assistant gives helpful, detailed, and polite answers to the human's questions.",
     roles=("Human", "Assistant"),
     messages=(
+        ("Human", "Hi!"),
+        ("Assistant", "Hi there! How can I help you today?")
     ),
-    offset=0,
+    offset=2,
     sep_style=SeparatorStyle.SINGLE,
     sep="###",
 )
@@ -358,6 +392,18 @@ conv_llava_v1_mmtag = Conversation(
     version="v1_mmtag",
 )
 
+conv_llava_lingji_2 = Conversation(
+    system="",
+    roles=("USER", "ASSISTANT"),
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.LINGJI_2,
+    bos="<>",
+    eos="<>",
+    sep="<sep>",
+    sep2="<>",
+)
+
 default_conversation = conv_vicuna_v0
 conv_templates = {
     "default": conv_vicuna_v0,
@@ -373,8 +419,11 @@ conv_templates = {
     "llava_v1": conv_llava_v1,
     "v1_mmtag": conv_llava_v1_mmtag,
     "llava_llama_2": conv_llava_llama_2,
+    "alpaca_2": conv_llava_llama_2,
 
     "mpt": conv_mpt,
+
+    "lingji_2": conv_llava_lingji_2,
 }
 
 

@@ -86,6 +86,19 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=True)
                 cfg_pretrained = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
                 model = LlavaMPTForCausalLM.from_pretrained(model_base, low_cpu_mem_usage=True, config=cfg_pretrained, **kwargs)
+            elif 'lingji' in model_name.lower():
+                model = LlavaLlamaForCausalLM.from_pretrained(model_base, low_cpu_mem_usage=True, **kwargs)
+                from llava.model.shared import get_tokenizer_llava_lingji as get_tokenizer
+                print("start to init lingji tokenizer")
+                tokenizer_path = 'llava/train/lingji_tokenizer/'
+                tokenizer = get_tokenizer(
+                    tokenizer_path,
+                    cache_dir=None,
+                    model_max_length=2048,
+                    padding_side="right",
+                    use_fast=False
+                )
+                print("finish init lingji tokenizer")
             else:
                 tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
                 cfg_pretrained = AutoConfig.from_pretrained(model_path)
@@ -98,6 +111,19 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             if 'mpt' in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
                 model = LlavaMPTForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
+            elif 'lingji' in model_name.lower():
+                model = LlavaLlamaForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
+                from llava.model.shared import get_tokenizer_llava_lingji as get_tokenizer
+                print("start to init lingji tokenizer")
+                tokenizer_path = 'llava/train/lingji_tokenizer/'
+                tokenizer = get_tokenizer(
+                    tokenizer_path,
+                    cache_dir=None,
+                    model_max_length=2048,
+                    padding_side="right",
+                    use_fast=False
+                )
+                print("finish init lingji tokenizer")
             else:
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 model = LlavaLlamaForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
@@ -119,13 +145,33 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             if 'mpt' in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
                 model = AutoModelForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, trust_remote_code=True, **kwargs)
+            elif 'lingji' in model_name.lower():
+                model = LlavaLlamaForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
+                from llava.model.shared import get_tokenizer_llava_lingji as get_tokenizer
+                print("start to init lingji tokenizer")
+                tokenizer_path = 'llava/train/lingji_tokenizer/'
+                tokenizer = get_tokenizer(
+                    tokenizer_path,
+                    cache_dir=None,
+                    model_max_length=2048,
+                    padding_side="right",
+                    use_fast=False
+                )
+                print("finish init lingji tokenizer")
             else:
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 model = AutoModelForCausalLM.from_pretrained(model_path, low_cpu_mem_usage=True, **kwargs)
 
     image_processor = None
 
-    if 'llava' in model_name.lower():
+    if 'lingji' in model_name.lower():
+
+        vision_tower = model.get_vision_tower()
+        if not vision_tower.is_loaded:
+            vision_tower.load_model()
+        vision_tower.to(device='cuda', dtype=torch.float16)
+        image_processor = vision_tower.image_processor
+    elif 'llava' in model_name.lower():
         mm_use_im_start_end = getattr(model.config, "mm_use_im_start_end", False)
         mm_use_im_patch_token = getattr(model.config, "mm_use_im_patch_token", True)
         if mm_use_im_patch_token:

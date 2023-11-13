@@ -41,6 +41,7 @@ def eval_model(args):
     for i, line in enumerate(tqdm(questions)):
         idx = line["id"]
         question = line['conversations'][0]
+        gt_ans = line["conversations"][1]
         qs = question['value'].replace('<image>', '').strip()
         cur_prompt = qs
 
@@ -66,7 +67,7 @@ def eval_model(args):
 
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
-        stopping_criteria = [KeywordsStoppingCriteria(keywords, tokenizer, input_ids)] if conv.version == "v0" else None
+        stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
 
         with torch.inference_mode():
             output_ids = model.generate(
@@ -76,8 +77,7 @@ def eval_model(args):
                 temperature=0.2,
                 max_new_tokens=1024,
                 use_cache=True,
-                stopping_criteria=stopping_criteria,
-            )
+                stopping_criteria=[stopping_criteria])
 
         input_token_len = input_ids.shape[1]
         n_diff_input_output = (input_ids != output_ids[:, :input_token_len]).sum().item()
